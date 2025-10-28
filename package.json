@@ -17,7 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^4.19.2",
-    "qrious": "^4.0.2",
+    "qrcode": "^1.5.3",
     "whatsapp-web.js": "^1.23.0"
   }
 }

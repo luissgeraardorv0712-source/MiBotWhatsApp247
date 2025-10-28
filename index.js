@@ -1,7 +1,7 @@
 // Dependencias necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
-const qrious = require('qrious'); // Para generar el QR como imagen
+const qrcode = require('qrcode'); // Usamos 'qrcode' que funciona en el servidor
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -10,18 +10,15 @@ const mutedUsers = {};
 const app = express();
 const port = process.env.PORT || 8080; 
 
-// Variable global para guardar el QR en texto, si está disponible
+// Variable global para guardar el QR en formato data URL
 let qrCodeValue = null; 
 
 app.get('/', (req, res) => {
     if (qrCodeValue) {
-        // Si hay un QR, lo convertimos a imagen para que puedas escanearlo
-        const qr = new qrious({ value: qrCodeValue, size: 250 });
-        const imageUrl = qr.toDataURL();
-        
+        // Enviamos el QR en formato HTML/imagen
         res.send(`
             <h2>👋 Escanea este código QR para conectar tu bot de WhatsApp</h2>
-            <img src="${imageUrl}" alt="Código QR de WhatsApp" style="border: 2px solid #25D366; padding: 10px;">
+            <img src="${qrCodeValue}" alt="Código QR de WhatsApp" style="border: 2px solid #25D366; padding: 10px;">
             <p>Refresca esta página si el QR no funciona después de unos segundos.</p>
             <hr>
             <p>Si ya escaneaste y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
@@ -37,14 +34,18 @@ app.listen(port, () => {
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const client = new Client({
-    // Nuevo clientId para forzar un nuevo QR en la nube
-    authStrategy: new LocalAuth({ clientId: 'render_session_v3' }) 
+    // Nuevo clientId para forzar un nuevo QR
+    authStrategy: new LocalAuth({ clientId: 'render_session_v4' }) 
 });
 
-client.on('qr', (qr) => {
-    // 💡 GUARDAMOS EL VALOR DEL QR en la variable global
-    qrCodeValue = qr;
-    console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
+client.on('qr', async (qr) => {
+    // 💡 GENERAMOS EL QR COMO UNA IMAGEN DATA URL USANDO LA NUEVA LIBRERÍA
+    try {
+        qrCodeValue = await qrcode.toDataURL(qr);
+        console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
+    } catch (err) {
+        console.error('Error al generar el QR con qrcode:', err);
+    }
 });
 
 client.on('ready', () => {
@@ -107,7 +108,9 @@ client.on('message_create', async msg => {
     // ----------------------------------------------------
     if (!msg.body.startsWith('.')) return; 
 
+    // Extraemos el comando y el contenido
     const command = msg.body.toLowerCase().split(' ')[0]; 
+    const content = msg.body.substring(command.length).trim();
     
     // Si no es un grupo, solo procesar comandos que no requieran grupo
     if (!chat.isGroup) {
@@ -124,15 +127,13 @@ client.on('message_create', async msg => {
     const isAdminCommand = (command === '.todos' || command === '.n' || command === '.mute' || command === '.unmute');
 
     if (isAdminCommand) {
+        // Si el usuario no es admin ni superadmin, denegar
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
             msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
             return;
         }
     }
-    
-    // Obtener el contenido del mensaje
-    const content = msg.body.substring(command.length).trim();
     
     // ----------------------
     // COMANDO: .mute (Silenciar a un usuario etiquetado)
