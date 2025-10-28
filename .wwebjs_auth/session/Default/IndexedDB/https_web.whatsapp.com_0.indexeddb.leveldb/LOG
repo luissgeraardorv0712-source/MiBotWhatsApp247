@@ -1,0 +1,4 @@
+2025/10/27-22:41:34.995 3ab4 Reusing MANIFEST C:\Users\luiss\OneDrive\Documentos\MiBotSimple\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/10/27-22:41:34.996 3ab4 Recovering log #42
+2025/10/27-22:41:35.085 3ab4 Reusing old log C:\Users\luiss\OneDrive\Documentos\MiBotSimple\.wwebjs_auth\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000042.log 
+2025/10/27-22:41:38.351 3ab4 Manual compaction at level-0 from '\x00\x1a\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x1b\x00\x00\x00' @ 0 : 0; will stop at (end)
