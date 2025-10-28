@@ -1,7 +1,7 @@
 // Dependencias necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
-const qrious = require('qrious'); // <-- Dependencia para generar el QR como imagen
+const qrious = require('qrious'); // Para generar el QR como imagen
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -37,6 +37,7 @@ app.listen(port, () => {
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const client = new Client({
+    // Nuevo clientId para forzar un nuevo QR en la nube
     authStrategy: new LocalAuth({ clientId: 'render_session_v3' }) 
 });
 
@@ -212,24 +213,3 @@ client.on('message_create', async msg => {
 
 // Iniciar el bot
 client.initialize();
-```eof
-
----
-
-## 🛠️ Pasos Finales
-
-1.  **Reemplaza y Guarda:** Reemplaza el código en tu `index.js` con el texto de arriba y guárdalo.
-2.  **Sube a GitHub:**
-
-    ```bash
-    git add .
-    git commit -m "Fix: Eliminada línea de error de sintaxis."
-    git push origin master
-    ```
-
-3.  **Espera y Escanea la Imagen:**
-    * Espera a que Render haga el despliegue final.
-    * **Abre la URL de tu servicio (`https://mibotwhatsapp.onrender.com`)**.
-    * **Escanea el Código QR que aparecerá como una imagen** en tu navegador.
-
-¡Al fin podremos tener tu bot conectado y funcionando! Por favor, dime si el código fue subido con éxito.
