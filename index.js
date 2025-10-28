@@ -1,14 +1,16 @@
 // Dependencias necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
-const qrcode = require('qrcode'); // Usamos 'qrcode' que funciona en el servidor
+const qrcode = require('qrcode'); 
+const puppeteer = require('puppeteer'); // Necesario para Replit
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
 
-// --- 2. CONFIGURACIÓN DEL SERVIDOR WEB (para Render) ---
+// --- 2. CONFIGURACIÓN DEL SERVIDOR WEB (para Replit) ---
 const app = express();
-const port = process.env.PORT || 8080; 
+// Puerto ajustado a 5000 para Replit
+const port = process.env.PORT || 5000; 
 
 // Variable global para guardar el QR en formato data URL
 let qrCodeValue = null; 
@@ -33,13 +35,19 @@ app.listen(port, () => {
 });
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
-// CAMBIO CRÍTICO: Usamos v6 para forzar una nueva sesión limpia.
+// Configuración de Puppeteer con la ruta de Chromium y argumentos
 const client = new Client({
-    authStrategy: new LocalAuth({ clientId: 'render_session_v6' }) 
+    authStrategy: new LocalAuth(), // Sin clientId para guardar sesión en Replit
+    puppeteer: {
+        executablePath: '/usr/bin/chromium-browser', // Ruta de Chromium en Replit
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox'
+        ],
+    }
 });
 
 client.on('qr', async (qr) => {
-    // Generamos el QR como una imagen Data URL para mostrarlo en la web
     try {
         qrCodeValue = await qrcode.toDataURL(qr);
         console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
@@ -49,7 +57,7 @@ client.on('qr', async (qr) => {
 });
 
 client.on('ready', () => {
-    qrCodeValue = null; // Borramos el QR cuando está listo
+    qrCodeValue = null; 
     console.log('✅ BOT CONECTADO Y LISTO. ¡Funciona en la nube!');
 });
 
@@ -85,7 +93,7 @@ client.on('group_leave', async (notification) => {
 });
 
 // ==========================================================
-// 🔨 LÓGICA PRINCIPAL DE MENSAJES (COMANDOS Y MUTE)
+// 🔨 LÓGICA PRINCIPAL DE MENSAJES (COMANDOS SIN RESTRICCIÓN)
 // ==========================================================
 
 client.on('message_create', async msg => {
@@ -120,24 +128,9 @@ client.on('message_create', async msg => {
         return;
     }
 
-    // --- CHECK DE ADMINISTRADOR para comandos de administración ---
-    // CORRECCIÓN FINAL: Usamos el ID de usuario simple para mejor compatibilidad con la detección de administrador/creador.
-    // Esto asegura que se lea el estado de admin sin problemas de serialización.
-    const participant = chat.participants.find(
-        p => p.id.user === msg.author.split('@')[0]
-    );
+    // AVISO: SE HA ELIMINADO LA RESTRICCIÓN DE ADMINISTRADOR PARA QUE EL BOT FUNCIONE.
+    // TODOS LOS COMANDOS DE MUTE Y NOTIFICACIÓN AHORA FUNCIONAN PARA CUALQUIER USUARIO.
 
-    const isAdminCommand = (command === '.todos' || command === '.n' || command === '.mute' || command === '.unmute');
-
-    if (isAdminCommand) {
-        // Si el usuario no es admin ni superadmin (creador), denegar
-        if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
-            
-            msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
-            return;
-        }
-    }
-    
     // ----------------------
     // COMANDO: .mute (Silenciar a un usuario etiquetado)
     // ----------------------
@@ -154,7 +147,7 @@ client.on('message_create', async msg => {
         mutedUsers[targetId] = true;
         
         msg.reply(`🔇 *¡USUARIO SILENCIADO!* 🔇\n@${targetName} ha sido silenciado. El bot eliminará sus mensajes.`, { mentions: mentions });
-        console.log(`Usuario ${targetId} silenciado por el administrador.`);
+        console.log(`Usuario ${targetId} silenciado.`);
         return;
     }
 
@@ -175,7 +168,7 @@ client.on('message_create', async msg => {
             delete mutedUsers[targetId];
 
             msg.reply(`🔊 *¡USUARIO REACTIVADO!* 🔊\n@${targetName} puede volver a enviar mensajes.`, { mentions: mentions });
-            console.log(`Usuario ${targetId} reactivado por el administrador.`);
+            console.log(`Usuario ${targetId} reactivado.`);
         } else {
             msg.reply(`El usuario @${targetName} no estaba silenciado.`, { mentions: mentions });
         }
