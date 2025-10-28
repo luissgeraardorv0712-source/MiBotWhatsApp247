@@ -34,8 +34,8 @@ app.listen(port, () => {
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const client = new Client({
-    // Nuevo clientId para forzar un nuevo QR
-    authStrategy: new LocalAuth({ clientId: 'render_session_v4' }) 
+    // CAMBIAR A 'render_session_v6' o superior si ya usaste v5
+    authStrategy: new LocalAuth({ clientId: 'render_session_v5' }) 
 });
 
 client.on('qr', async (qr) => {
@@ -121,9 +121,11 @@ client.on('message_create', async msg => {
     }
 
     // --- CHECK DE ADMINISTRADOR para comandos de administración ---
+    // CORRECCIÓN: Usamos el ID de usuario simple para mejor compatibilidad con la detección de administrador/creador.
     const participant = chat.participants.find(
-        p => p.id._serialized === msg.author
+        p => p.id.user === msg.author.split('@')[0]
     );
+
     const isAdminCommand = (command === '.todos' || command === '.n' || command === '.mute' || command === '.unmute');
 
     if (isAdminCommand) {
