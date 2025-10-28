@@ -33,13 +33,13 @@ app.listen(port, () => {
 });
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
+// CAMBIO CRÍTICO: Usamos v6 para forzar una nueva sesión limpia.
 const client = new Client({
-    // CAMBIAR A 'render_session_v6' o superior si ya usaste v5
-    authStrategy: new LocalAuth({ clientId: 'render_session_v5' }) 
+    authStrategy: new LocalAuth({ clientId: 'render_session_v6' }) 
 });
 
 client.on('qr', async (qr) => {
-    // 💡 GENERAMOS EL QR COMO UNA IMAGEN DATA URL USANDO LA NUEVA LIBRERÍA
+    // Generamos el QR como una imagen Data URL para mostrarlo en la web
     try {
         qrCodeValue = await qrcode.toDataURL(qr);
         console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
@@ -121,7 +121,8 @@ client.on('message_create', async msg => {
     }
 
     // --- CHECK DE ADMINISTRADOR para comandos de administración ---
-    // CORRECCIÓN: Usamos el ID de usuario simple para mejor compatibilidad con la detección de administrador/creador.
+    // CORRECCIÓN FINAL: Usamos el ID de usuario simple para mejor compatibilidad con la detección de administrador/creador.
+    // Esto asegura que se lea el estado de admin sin problemas de serialización.
     const participant = chat.participants.find(
         p => p.id.user === msg.author.split('@')[0]
     );
@@ -129,7 +130,7 @@ client.on('message_create', async msg => {
     const isAdminCommand = (command === '.todos' || command === '.n' || command === '.mute' || command === '.unmute');
 
     if (isAdminCommand) {
-        // Si el usuario no es admin ni superadmin, denegar
+        // Si el usuario no es admin ni superadmin (creador), denegar
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
             msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
