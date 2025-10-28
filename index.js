@@ -20,7 +20,9 @@ app.listen(port, () => {
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const client = new Client({
-    authStrategy: new LocalAuth()
+    // Corregido: Añadimos un clientId único. Esto es CRUCIAL para forzar un nuevo
+    // QR si la sesión se pierde en la nube (Render).
+    authStrategy: new LocalAuth({ clientId: 'render_session_v2' }) 
 });
 
 client.on('qr', (qr) => {
@@ -73,6 +75,7 @@ client.on('message_create', async msg => {
     // 🔴 LÓGICA MUTE: Revisar si el remitente está silenciado
     if (chat.isGroup && mutedUsers[msg.author]) {
         try {
+            // Intentar eliminar el mensaje del usuario silenciado
             await msg.delete(true); 
             console.log(`🚫 Mensaje de usuario silenciado (${msg.author}) eliminado en ${chat.name}.`);
             return;
@@ -106,7 +109,7 @@ client.on('message_create', async msg => {
     if (isAdminCommand) {
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
-            // 🛑 CORRECCIÓN: Eliminamos la reacción que falla en Render.
+            // 🛑 CORRECCIÓN: Eliminamos la reacción que falla en Render/Nube.
             // await msg.react('❌'); 
             
             msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
