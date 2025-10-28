@@ -106,11 +106,10 @@ client.on('message_create', async msg => {
     if (isAdminCommand) {
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
-            // 🛑 NUEVA FUNCIÓN: Reaccionar con emoji de prohibición
-            await msg.react('❌'); 
+            // 🛑 CORRECCIÓN: Eliminamos la reacción que falla en Render.
+            // await msg.react('❌'); 
             
-            // Opcional: También puede enviar un mensaje (pero la reacción es más rápida)
-            // msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
+            msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
             return;
         }
     }
