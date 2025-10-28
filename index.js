@@ -2,7 +2,7 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode'); 
-const puppeteer = require('puppeteer'); // Necesario para Replit
+const puppeteer = require('puppeteer'); 
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -16,13 +16,14 @@ const port = process.env.PORT || 5000;
 let qrCodeValue = null; 
 
 app.get('/', (req, res) => {
-    // Hemos forzado el uso de código de vinculación (Link Code) para mayor estabilidad en Replit.
-    // La web solo da una indicación.
     if (qrCodeValue) {
+        // Enviamos el QR en formato HTML/imagen
         res.send(`
-            <h2>👋 El bot de WhatsApp está intentando conectarse.</h2>
-            <p>Por favor, revisa la **consola de Replit** para obtener el **código de 8 dígitos** (Link Code).</p>
-            <p>Si ya escaneaste el código y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
+            <h2>👋 Escanea este código QR para conectar tu bot de WhatsApp</h2>
+            <img src="${qrCodeValue}" alt="Código QR de WhatsApp" style="border: 2px solid #25D366; padding: 10px;">
+            <p>Refresca esta página si el QR no funciona después de unos segundos.</p>
+            <hr>
+            <p>Si ya escaneaste y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
         `);
     } else {
         res.send('El bot de WhatsApp está en línea y funcionando.');
@@ -37,8 +38,7 @@ app.listen(port, () => {
 // Configuración de Puppeteer con la ruta de Chromium y argumentos
 const client = new Client({
     authStrategy: new LocalAuth(), // Sin clientId para guardar sesión en Replit
-    authTimeoutMs: 60000, 
-    useQR: false, // FORZAMOS EL CÓDIGO DE VINCULACIÓN EN CONSOLA
+    // ✅ VOLVEMOS AL QR. QUITAMOS 'useQR: false'
     puppeteer: {
         executablePath: '/usr/bin/chromium-browser', // Ruta de Chromium en Replit
         args: [
@@ -49,19 +49,12 @@ const client = new Client({
 });
 
 client.on('qr', async (qr) => {
-    // Este evento ya no se usará, pero es el placeholder para el estado de conexión
-    qrCodeValue = "Esperando código de 8 dígitos en consola...";
-    console.log('--- ESPERANDO CÓDIGO DE VINCULACIÓN EN CONSOLA ---');
-});
-
-// Evento que se dispara cuando el bot genera un Link Code
-client.on('auth_code', (code) => {
-    console.log(`\n\n==========================================`);
-    console.log(`🔑 CÓDIGO DE VINCULACIÓN: ${code}`);
-    console.log(`==========================================`);
-    console.log(`1. Ve a WhatsApp > Dispositivos vinculados.`);
-    console.log(`2. Toca "Vincular con un número de teléfono/código".`);
-    console.log(`3. Introduce este código para conectar el bot.`);
+    try {
+        qrCodeValue = await qrcode.toDataURL(qr);
+        console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO (¡A ESCANEAR!) ---');
+    } catch (err) {
+        console.error('Error al generar el QR con qrcode:', err);
+    }
 });
 
 client.on('ready', () => {
