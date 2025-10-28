@@ -16,14 +16,13 @@ const port = process.env.PORT || 5000;
 let qrCodeValue = null; 
 
 app.get('/', (req, res) => {
+    // Hemos forzado el uso de código de vinculación (Link Code) para mayor estabilidad en Replit.
+    // La web solo da una indicación.
     if (qrCodeValue) {
-        // Enviamos el QR en formato HTML/imagen
         res.send(`
-            <h2>👋 Escanea este código QR para conectar tu bot de WhatsApp</h2>
-            <img src="${qrCodeValue}" alt="Código QR de WhatsApp" style="border: 2px solid #25D366; padding: 10px;">
-            <p>Refresca esta página si el QR no funciona después de unos segundos.</p>
-            <hr>
-            <p>Si ya escaneaste y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
+            <h2>👋 El bot de WhatsApp está intentando conectarse.</h2>
+            <p>Por favor, revisa la **consola de Replit** para obtener el **código de 8 dígitos** (Link Code).</p>
+            <p>Si ya escaneaste el código y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
         `);
     } else {
         res.send('El bot de WhatsApp está en línea y funcionando.');
@@ -38,6 +37,8 @@ app.listen(port, () => {
 // Configuración de Puppeteer con la ruta de Chromium y argumentos
 const client = new Client({
     authStrategy: new LocalAuth(), // Sin clientId para guardar sesión en Replit
+    authTimeoutMs: 60000, 
+    useQR: false, // FORZAMOS EL CÓDIGO DE VINCULACIÓN EN CONSOLA
     puppeteer: {
         executablePath: '/usr/bin/chromium-browser', // Ruta de Chromium en Replit
         args: [
@@ -48,12 +49,19 @@ const client = new Client({
 });
 
 client.on('qr', async (qr) => {
-    try {
-        qrCodeValue = await qrcode.toDataURL(qr);
-        console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
-    } catch (err) {
-        console.error('Error al generar el QR con qrcode:', err);
-    }
+    // Este evento ya no se usará, pero es el placeholder para el estado de conexión
+    qrCodeValue = "Esperando código de 8 dígitos en consola...";
+    console.log('--- ESPERANDO CÓDIGO DE VINCULACIÓN EN CONSOLA ---');
+});
+
+// Evento que se dispara cuando el bot genera un Link Code
+client.on('auth_code', (code) => {
+    console.log(`\n\n==========================================`);
+    console.log(`🔑 CÓDIGO DE VINCULACIÓN: ${code}`);
+    console.log(`==========================================`);
+    console.log(`1. Ve a WhatsApp > Dispositivos vinculados.`);
+    console.log(`2. Toca "Vincular con un número de teléfono/código".`);
+    console.log(`3. Introduce este código para conectar el bot.`);
 });
 
 client.on('ready', () => {
@@ -128,8 +136,14 @@ client.on('message_create', async msg => {
         return;
     }
 
-    // AVISO: SE HA ELIMINADO LA RESTRICCIÓN DE ADMINISTRADOR PARA QUE EL BOT FUNCIONE.
-    // TODOS LOS COMANDOS DE MUTE Y NOTIFICACIÓN AHORA FUNCIONAN PARA CUALQUIER USUARIO.
+    // Corregimos la variable para que, si el usuario no pone texto en .todos o .n, use un mensaje por defecto.
+    let finalContent = content;
+    if (content.length === 0) {
+        // Mensaje por defecto para .todos o .n si el usuario solo escribe el comando
+        finalContent = "¡ATENCIÓN A TODOS! Por favor, revisen el grupo."; 
+    } 
+
+    // AVISO: RESTRICCIÓN DE ADMINISTRADOR FUE ELIMINADA.
 
     // ----------------------
     // COMANDO: .mute (Silenciar a un usuario etiquetado)
@@ -179,10 +193,6 @@ client.on('message_create', async msg => {
     // ----------------------
     // COMANDOS DE NOTIFICACIÓN (.todos y .n)
     // ----------------------
-    
-    if (content.length === 0 && (command === '.todos' || command === '.n')) {
-        return msg.reply(`Debes escribir el mensaje después del comando, por ejemplo: ${command} Mensaje urgente.`);
-    }
 
     let mentions = [];
     for (let participant of chat.participants) {
@@ -192,7 +202,8 @@ client.on('message_create', async msg => {
 
     // COMANDO: .todos (Mensaje con etiquetas @número visibles)
     if (command === '.todos') {
-        let text = `📣 **NOTIFICACIÓN URGENTE** 📣\n_Mensaje de @${msg.author.split('@')[0]}_\n\n*Contenido:* ${content}\n\n`;
+        // Usamos finalContent (que tiene el mensaje del usuario o el por defecto)
+        let text = `📣 **NOTIFICACIÓN URGENTE** 📣\n_Mensaje de @${msg.author.split('@')[0]}_\n\n*Contenido:* ${finalContent}\n\n`;
         
         for (let participant of chat.participants) {
             text += `@${participant.id.user} `; 
@@ -203,7 +214,8 @@ client.on('message_create', async msg => {
 
     // COMANDO: .n (Mensaje Exacto con Notificación forzada, SIN etiquetas visibles)
     if (command === '.n') {
-        chat.sendMessage(content, { mentions });
+        // Usamos finalContent
+        chat.sendMessage(finalContent, { mentions });
         console.log(`Comando .n (silencioso) ejecutado en grupo: ${chat.name}`);
     }
 });
