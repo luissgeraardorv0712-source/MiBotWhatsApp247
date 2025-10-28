@@ -1,8 +1,7 @@
 // Dependencias necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
-// const qrcode = require('qrcode-terminal'); // <-- YA NO NECESITAMOS ESTA
 const express = require('express');
-const qrious = require('qrious'); // <-- AÑADIMOS ESTA para generar el QR
+const qrious = require('qrious'); // <-- Dependencia para generar el QR como imagen
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -53,7 +52,7 @@ client.on('ready', () => {
 });
 
 // ==========================================================
-// ... (Resto del código de bienvenida y comandos, no ha cambiado) ...
+// 🔔 FUNCIONES DE BIENVENIDA Y DESPEDIDA
 // ==========================================================
 
 client.on('group_join', async (notification) => {
@@ -126,7 +125,6 @@ client.on('message_create', async msg => {
     if (isAdminCommand) {
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
-            // 🛑 Corregido: Respuesta con texto en lugar de reacción fallida.
             msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
             return;
         }
@@ -216,11 +214,22 @@ client.on('message_create', async msg => {
 client.initialize();
 ```eof
 
-### Paso 2: Instalar Nueva Dependencia
+---
 
-Ya que estamos usando la librería `qrious` en el nuevo código, debes añadirla a tu proyecto.
+## 🛠️ Pasos Finales
 
-Abre tu terminal en la carpeta del proyecto y ejecuta:
+1.  **Reemplaza y Guarda:** Reemplaza el código en tu `index.js` con el texto de arriba y guárdalo.
+2.  **Sube a GitHub:**
 
-```bash
-npm install qrious
+    ```bash
+    git add .
+    git commit -m "Fix: Eliminada línea de error de sintaxis."
+    git push origin master
+    ```
+
+3.  **Espera y Escanea la Imagen:**
+    * Espera a que Render haga el despliegue final.
+    * **Abre la URL de tu servicio (`https://mibotwhatsapp.onrender.com`)**.
+    * **Escanea el Código QR que aparecerá como una imagen** en tu navegador.
+
+¡Al fin podremos tener tu bot conectado y funcionando! Por favor, dime si el código fue subido con éxito.
