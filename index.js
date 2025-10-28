@@ -1,7 +1,8 @@
 // Dependencias necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+// const qrcode = require('qrcode-terminal'); // <-- YA NO NECESITAMOS ESTA
 const express = require('express');
+const qrious = require('qrious'); // <-- AÑADIMOS ESTA para generar el QR
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -10,8 +11,25 @@ const mutedUsers = {};
 const app = express();
 const port = process.env.PORT || 8080; 
 
+// Variable global para guardar el QR en texto, si está disponible
+let qrCodeValue = null; 
+
 app.get('/', (req, res) => {
-    res.send('El bot de WhatsApp está en línea y funcionando.');
+    if (qrCodeValue) {
+        // Si hay un QR, lo convertimos a imagen para que puedas escanearlo
+        const qr = new qrious({ value: qrCodeValue, size: 250 });
+        const imageUrl = qr.toDataURL();
+        
+        res.send(`
+            <h2>👋 Escanea este código QR para conectar tu bot de WhatsApp</h2>
+            <img src="${imageUrl}" alt="Código QR de WhatsApp" style="border: 2px solid #25D366; padding: 10px;">
+            <p>Refresca esta página si el QR no funciona después de unos segundos.</p>
+            <hr>
+            <p>Si ya escaneaste y el bot está listo, verás el mensaje: "El bot de WhatsApp está en línea y funcionando."</p>
+        `);
+    } else {
+        res.send('El bot de WhatsApp está en línea y funcionando.');
+    }
 });
 
 app.listen(port, () => {
@@ -20,22 +38,22 @@ app.listen(port, () => {
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const client = new Client({
-    // Corregido: Añadimos un clientId único. Esto es CRUCIAL para forzar un nuevo
-    // QR si la sesión se pierde en la nube (Render).
-    authStrategy: new LocalAuth({ clientId: 'render_session_v2' }) 
+    authStrategy: new LocalAuth({ clientId: 'render_session_v3' }) 
 });
 
 client.on('qr', (qr) => {
-    qrcode.generate(qr, { small: true });
-    console.log('--- ESCANEA ESTE QR PARA CONECTAR TU NÚMERO ---');
+    // 💡 GUARDAMOS EL VALOR DEL QR en la variable global
+    qrCodeValue = qr;
+    console.log('--- QR DISPONIBLE EN LA URL DEL SERVICIO ---');
 });
 
 client.on('ready', () => {
+    qrCodeValue = null; // Borramos el QR cuando está listo
     console.log('✅ BOT CONECTADO Y LISTO. ¡Funciona en la nube!');
 });
 
 // ==========================================================
-// 🔔 FUNCIONES DE BIENVENIDA Y DESPEDIDA
+// ... (Resto del código de bienvenida y comandos, no ha cambiado) ...
 // ==========================================================
 
 client.on('group_join', async (notification) => {
@@ -75,7 +93,6 @@ client.on('message_create', async msg => {
     // 🔴 LÓGICA MUTE: Revisar si el remitente está silenciado
     if (chat.isGroup && mutedUsers[msg.author]) {
         try {
-            // Intentar eliminar el mensaje del usuario silenciado
             await msg.delete(true); 
             console.log(`🚫 Mensaje de usuario silenciado (${msg.author}) eliminado en ${chat.name}.`);
             return;
@@ -109,9 +126,7 @@ client.on('message_create', async msg => {
     if (isAdminCommand) {
         if (!participant || (!participant.isAdmin && !participant.isSuperAdmin)) {
             
-            // 🛑 CORRECCIÓN: Eliminamos la reacción que falla en Render/Nube.
-            // await msg.react('❌'); 
-            
+            // 🛑 Corregido: Respuesta con texto en lugar de reacción fallida.
             msg.reply('❌ Solo los administradores del grupo pueden usar este comando.'); 
             return;
         }
@@ -199,3 +214,13 @@ client.on('message_create', async msg => {
 
 // Iniciar el bot
 client.initialize();
+```eof
+
+### Paso 2: Instalar Nueva Dependencia
+
+Ya que estamos usando la librería `qrious` en el nuevo código, debes añadirla a tu proyecto.
+
+Abre tu terminal en la carpeta del proyecto y ejecuta:
+
+```bash
+npm install qrious
