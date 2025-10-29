@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode'); 
 const puppeteer = require('puppeteer'); 
+const { exit } = require('process'); // Necesario para forzar la salida y el reinicio
 
 // 💡 1. ALMACENAMIENTO DE USUARIOS MUTEADOS (EN MEMORIA)
 const mutedUsers = {}; 
@@ -35,15 +36,18 @@ app.listen(port, () => {
 });
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
-// Configuración de Puppeteer con la ruta de Chromium y argumentos
+// Configuración de Puppeteer con la ruta de Chromium y argumentos de estabilidad
 const client = new Client({
-    authStrategy: new LocalAuth(), // Sin clientId para guardar sesión en Replit
-    // ✅ VOLVEMOS AL QR. QUITAMOS 'useQR: false'
+    authStrategy: new LocalAuth(), 
     puppeteer: {
         executablePath: '/usr/bin/chromium-browser', // Ruta de Chromium en Replit
         args: [
             '--no-sandbox', 
-            '--disable-setuid-sandbox'
+            '--disable-setuid-sandbox',
+            // Argumentos extra para la máxima estabilidad en Replit
+            '--disable-dev-shm-usage',
+            '--no-gpu',
+            '--no-zygote'
         ],
     }
 });
@@ -129,14 +133,11 @@ client.on('message_create', async msg => {
         return;
     }
 
-    // Corregimos la variable para que, si el usuario no pone texto en .todos o .n, use un mensaje por defecto.
+    // Si el contenido está vacío, ponemos el mensaje por defecto
     let finalContent = content;
-    if (content.length === 0) {
-        // Mensaje por defecto para .todos o .n si el usuario solo escribe el comando
+    if (content.length === 0 && (command === '.todos' || command === '.n')) {
         finalContent = "¡ATENCIÓN A TODOS! Por favor, revisen el grupo."; 
     } 
-
-    // AVISO: RESTRICCIÓN DE ADMINISTRADOR FUE ELIMINADA.
 
     // ----------------------
     // COMANDO: .mute (Silenciar a un usuario etiquetado)
@@ -186,32 +187,48 @@ client.on('message_create', async msg => {
     // ----------------------
     // COMANDOS DE NOTIFICACIÓN (.todos y .n)
     // ----------------------
-
-    let mentions = [];
-    for (let participant of chat.participants) {
-        const contact = await client.getContactById(participant.id._serialized);
-        mentions.push(contact);
-    }
-
-    // COMANDO: .todos (Mensaje con etiquetas @número visibles)
-    if (command === '.todos') {
-        // Usamos finalContent (que tiene el mensaje del usuario o el por defecto)
-        let text = `📣 **NOTIFICACIÓN URGENTE** 📣\n_Mensaje de @${msg.author.split('@')[0]}_\n\n*Contenido:* ${finalContent}\n\n`;
-        
+    if (command === '.todos' || command === '.n') {
+        let mentions = [];
         for (let participant of chat.participants) {
-            text += `@${participant.id.user} `; 
+            const contact = await client.getContactById(participant.id._serialized);
+            mentions.push(contact);
         }
-        
-        chat.sendMessage(text, { mentions });
-    }
 
-    // COMANDO: .n (Mensaje Exacto con Notificación forzada, SIN etiquetas visibles)
-    if (command === '.n') {
-        // Usamos finalContent
-        chat.sendMessage(finalContent, { mentions });
-        console.log(`Comando .n (silencioso) ejecutado en grupo: ${chat.name}`);
+        // COMANDO: .todos (Mensaje con etiquetas @número visibles)
+        if (command === '.todos') {
+            let text = `📣 **NOTIFICACIÓN URGENTE** 📣\n_Mensaje de @${msg.author.split('@')[0]}_\n\n*Contenido:* ${finalContent}\n\n`;
+            
+            for (let participant of chat.participants) {
+                text += `@${participant.id.user} `; 
+            }
+            
+            chat.sendMessage(text, { mentions });
+        }
+
+        // COMANDO: .n (Mensaje Exacto con Notificación forzada, SIN etiquetas visibles)
+        if (command === '.n') {
+            chat.sendMessage(finalContent, { mentions });
+            console.log(`Comando .n (silencioso) ejecutado en grupo: ${chat.name}`);
+        }
     }
 });
+
+// ==========================================================
+// ⚙️ FUNCIÓN DE REINICIO PROGRAMADO (Para evitar el error de Replit)
+// ==========================================================
+
+const RESTART_INTERVAL_MS = 1000 * 60 * 60 * 12; // 12 horas
+
+const restartBot = () => {
+    console.log(`\n🚨 REINICIO AUTOMÁTICO: Forzando la salida del proceso para reconectar en un entorno limpio.`);
+    
+    // Este comando detiene el proceso de Node.js, y Replit lo reiniciará automáticamente.
+    exit(0); 
+};
+
+// Programar el reinicio cada 12 horas.
+setInterval(restartBot, RESTART_INTERVAL_MS);
+
 
 // Iniciar el bot
 client.initialize();
